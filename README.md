@@ -4,7 +4,7 @@ Implementation of a slider widget using tkinter, multiple slider supported
 for an example see:
 `main.py`
 
-![Slider](https://ibb.co/MkLPyWZ)
+![Slider](https://ibb.co/MkLPyWZ.png)
 
 ```python
 	
