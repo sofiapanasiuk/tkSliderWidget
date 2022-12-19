@@ -4,7 +4,12 @@ Implementation of a slider widget using tkinter, multiple slider supported
 for an example see:
 `main.py`
 
-![life_sat_scale](https://user-images.githubusercontent.com/88394968/208346885-427d4c20-7c75-42d4-a9bf-4f79d7e0d57b.JPG)
+Initial Position 
+![life_sat_scale_ogpos](https://user-images.githubusercontent.com/88394968/208348326-496d9976-6054-46d7-925a-7e6ee3b7891e.JPG)
+
+After User Input
+![life_sat_scale_check](https://user-images.githubusercontent.com/88394968/208348391-1ddc701a-7ef3-4ffd-8486-63e54e889c59.JPG)
+
 
 ```python
 	
