@@ -3,10 +3,12 @@ from tkinter.ttk import *
 
 from typing import TypedDict, List, Union, Callable
 
+
 class Bar(TypedDict):
     Ids: List[int]
     Pos: float
     Value: float
+    Pos0: float
 
 class Slider(Frame):
     LINE_COLOR = "#476b6b"
@@ -16,6 +18,7 @@ class Slider(Frame):
     BAR_RADIUS = 10
     BAR_RADIUS_INNER = BAR_RADIUS - 5
     DIGIT_PRECISION = ".1f"  # for showing in the canvas
+    TEXT_PRECISION = ".0f"
 
     # relative step size in 0 to 1, set to 0 for no step size restiction
     STEP_SIZE:float = 0.0
@@ -25,6 +28,8 @@ class Slider(Frame):
         master,
         width=400,
         height=80,
+        from_ = 0,
+        to = 10,
         min_val=0,
         max_val=1,
         init_lis=None,
@@ -37,6 +42,8 @@ class Slider(Frame):
         if init_lis == None:
             init_lis = [min_val]
         self.init_lis = init_lis
+        self.from_ = from_
+        self.to = to
         self.max_val = max_val
         self.min_val = min_val
         self.show_value = show_value
@@ -47,20 +54,22 @@ class Slider(Frame):
         if not show_value:
             self.slider_y = self.canv_H / 2  # y pos of the slider
         else:
-            self.slider_y = self.canv_H * 2 / 5
+            self.slider_y = self.canv_H / 5
         self.slider_x = Slider.BAR_RADIUS  # x pos of the slider (left side)
 
         self._val_change_callback = lambda lis: None
 
         self.bars: List[Bar] = []
         self.selected_idx = None  # current selection bar index
+
         for value in self.init_lis:
             pos = (value - min_val) / (max_val - min_val)
+            pos0 = value
             ids = []
-            bar: Bar = {"Pos": pos, "Ids": ids, "Value": value}
+            bar: Bar = {"Pos": pos, "Ids": ids, "Value": value, "Pos0": pos0}
             self.bars.append(bar)
 
-        self.canv = Canvas(self, height=self.canv_H, width=self.canv_W)
+        self.canv = Canvas(self, height=self.canv_W, width=self.canv_W, relief=RAISED)
         self.canv.pack()
         self.canv.bind("<Motion>", self._mouseMotion)
         self.canv.bind("<B1-Motion>", self._moveBar)
@@ -68,12 +77,11 @@ class Slider(Frame):
             self.canv.bind("<3>", self._removeBar)
         if addable:
             self.canv.bind("<ButtonRelease-1>", self._addBar)
-
         self.__addTrack(
             self.slider_x, self.slider_y, self.canv_W - self.slider_x, self.slider_y
         )
         for bar in self.bars:
-            bar["Ids"] = self.__addBar(bar["Pos"])
+            bar["Ids"] = self.__addBar(bar["Pos"], bar["Pos0"])
 
     def getValues(self) -> List[float]:
         values = [bar["Value"] for bar in self.bars]
@@ -100,11 +108,12 @@ class Slider(Frame):
             return False
         pos = self.__calcPos(x)
         idx = self.selected_idx
+        pos0 = self.bars[idx]["Pos0"]
         if self.STEP_SIZE > 0:
             curr_pos = self.bars[idx]["Pos"]
             if abs(curr_pos - pos) < self.STEP_SIZE:
                 return
-        self.__moveBar(idx, pos)
+        self.__moveBar(idx, pos, pos0)
 
     def _removeBar(self, event):
         x = event.x
@@ -124,10 +133,12 @@ class Slider(Frame):
         if self.selected_idx == None:
             pos = self.__calcPos(x)
             ids = []
+            pos0 = float
             bar = {
                 "Pos": pos,
                 "Ids": ids,
-                "Value": self.__calcPos(x) * (self.max_val - self.min_val)
+                "Value": self.__calcPos(x) * (self.max_val - self.min_val),
+                "Pos0": pos0
                 + self.min_val,
             }
             self.bars.append(bar)
@@ -138,7 +149,8 @@ class Slider(Frame):
                     self.canv.delete(id)
 
             for bar in self.bars:
-                bar["Ids"] = self.__addBar(bar["Pos"])
+                bar["Ids"] = self.__addBar(bar["Pos"], bar["Pos0"])
+
 
     def __addTrack(self, startx, starty, endx, endy):
         id1 = self.canv.create_line(
@@ -146,7 +158,7 @@ class Slider(Frame):
         )
         return id
 
-    def __addBar(self, pos):
+    def __addBar(self, pos, pos0):
         """@ pos: position of the bar, ranged from (0,1)"""
         if pos < 0 or pos > 1:
             raise Exception("Pos error - Pos: " + str(pos))
@@ -168,20 +180,21 @@ class Slider(Frame):
             x - r, y - r, x + r, y + r, fill=Slider.BAR_COLOR_INNER, outline=""
         )
         if self.show_value:
-            y_value = y + Slider.BAR_RADIUS + 8
-            value = pos * (self.max_val - self.min_val) + self.min_val
-            id_value = self.canv.create_text(
-                x, y_value, text=format(value, Slider.DIGIT_PRECISION)
-            )
-            return [id_outer, id_inner, id_value]
+            for id in range(len(self.bars)):
+                y_value = y + Slider.BAR_RADIUS + 8
+                value = pos0
+                id_value = self.canv.create_text(x, y_value, text=format(value, Slider.TEXT_PRECISION)
+                )
+                return [id_outer, id_inner, id_value]
         else:
             return [id_outer, id_inner]
 
-    def __moveBar(self, idx, pos):
+
+    def __moveBar(self, idx, pos, pos0):
         ids = self.bars[idx]["Ids"]
         for id in ids:
             self.canv.delete(id)
-        self.bars[idx]["Ids"] = self.__addBar(pos)
+        self.bars[idx]["Ids"] = self.__addBar(pos, pos0)
         self.bars[idx]["Pos"] = pos
         self.bars[idx]["Value"] = pos * (self.max_val - self.min_val) + self.min_val
         self._val_change_callback(self.getValues())
@@ -196,6 +209,17 @@ class Slider(Frame):
         else:
             return pos
 
+    def __calcPos0(self, idx):
+        """calculate position from x coordinate"""
+        pos = (x - self.slider_x) / (self.canv_W - 2 * self.slider_x)
+        if pos < 0:
+            return 0
+        elif pos > 1:
+            return 1
+        else:
+            return pos0
+
+
     def __checkSelection(self, x, y):
         """
         To check if the position is inside the bounding rectangle of a Bar
@@ -207,3 +231,29 @@ class Slider(Frame):
             if bbox[0] < x and bbox[2] > x and bbox[1] < y and bbox[3] > y:
                 return [True, idx]
         return [False, None]
+
+import tkinter as tk
+from tkSliderWidget import Slider
+
+root = tk.Tk()
+life_sat=tk.StringVar()
+life_sat = life_sat.set("")
+
+slider = Slider(root, width = 500, height = 500, min_val = 0, max_val = 10, init_lis = [1,2,3,4,5,6,7,8,9], show_value = TRUE)
+name_label = tk.Label(root, text = 'My current life satisfaction is: (out of 10)', font=('calibre',10, 'bold'))
+entry = tk.Entry(root, textvariable = life_sat, font=('calibre',10,'normal'))
+l3 = Label(root, text = "Life Satisfaction Scale")
+b1 = Button(root, text ="Done")
+
+name_label.pack()
+entry.pack()
+slider.pack()
+l3.pack(anchor=CENTER)
+b1.pack(anchor=CENTER)
+# optionally add a callback on value change
+slider.setValueChageCallback(lambda vals: print(vals))
+
+root.title("Life Satisfaction Scale")
+root.mainloop()
+
+print(slider.getValues())
